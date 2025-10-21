@@ -142,7 +142,7 @@ Process moves by:
                     from .apply_reorganization import validate_reorganization
                     errors = validate_reorganization(suggestions)
                     if errors:
-                        print(f"\n\n✗ Agent output failed validation:")
+                        print("\n\n✗ Agent output failed validation:")
                         for error in errors:
                             print(f"   - {error}")
                         print("\n   Suggestions NOT saved. Agent may need to retry.")

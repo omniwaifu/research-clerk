@@ -255,7 +255,7 @@ class LocalSQLiteBackend:
             (item_id, collection_id)
         )
         if cursor.fetchone():
-            print(f"  - Item already in collection (skipping)")
+            print("  - Item already in collection (skipping)")
             return
         
         # get next orderIndex
@@ -271,7 +271,7 @@ class LocalSQLiteBackend:
             VALUES (?, ?, ?)
         """, (collection_id, item_id, order_index))
         
-        print(f"  ✓ Added item to collection")
+        print("  ✓ Added item to collection")
     
     def add_tags(self, item_key: str, tag_names: List[str]):
         """Add tags to an item."""
@@ -387,4 +387,4 @@ class LocalSQLiteBackend:
             (item_id, collection_id)
         )
 
-        print(f"  ✓ Removed item from collection")
+        print("  ✓ Removed item from collection")

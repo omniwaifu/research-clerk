@@ -132,7 +132,7 @@ Create collections as needed (parents first), then add items and tags.
                     from .apply_suggestions import validate_suggestions
                     errors = validate_suggestions(suggestions)
                     if errors:
-                        print(f"\n\n✗ Agent output failed validation:")
+                        print("\n\n✗ Agent output failed validation:")
                         for error in errors:
                             print(f"   - {error}")
                         print("\n   Suggestions NOT saved. Agent may need to retry.")
