@@ -1,93 +1,48 @@
 # research-clerk
 
-AI-powered categorization for Zotero libraries using Claude Agent SDK.
+Uses Claude to categorize papers in your Zotero library. Reads your local database directly.
 
-## What it does
+Give it unfiled papers, it creates collections and tags them. Can also reorganize existing collections if you want to refactor your taxonomy.
 
-Analyzes unfiled papers and creates hierarchical collections with tags. Works directly with local Zotero database - no API keys or cloud sync required.
-
-## Installation
-
-Install as a UV tool for global access:
+## Install
 
 ```bash
-# Install from local directory
 uv tool install .
 
-# Or install directly from git
+# or from git
 uv tool install git+https://github.com/yourusername/research-clerk.git
-
-# Or run without installing
-uvx --from . research-clerk
 ```
 
-Zotero database auto-detected at `~/Zotero/zotero.sqlite`. Set `ZOTERO_DATA_DIR` for custom locations.
+Finds your Zotero database at `~/Zotero/zotero.sqlite`. If it's somewhere else, set `ZOTERO_DATA_DIR`.
 
-## Usage
+## How to use
 
-### Categorize unfiled items
+Run dry-run first (outputs JSON), review it, apply if it looks good:
 
 ```bash
-# Dry-run: analyze and save suggestions
+# analyze 10 unfiled papers
 research-clerk --batch-size 10
 
-# Apply saved suggestions (path shown in output)
+# check the suggestions
+cat ~/.local/share/research-clerk/suggestions.json
+
+# apply them
 research-clerk --apply-suggestions ~/.local/share/research-clerk/suggestions.json
 ```
 
-### Reorganize existing structure
+Or reorganize stuff that's already filed:
 
 ```bash
-# Dry-run: analyze and suggest reorganization
 research-clerk --reorganize
-
-# Apply saved reorganization
 research-clerk --apply-reorganization ~/.local/share/research-clerk/reorganization.json
 ```
 
-### Options
+Output goes to `~/.local/share/research-clerk/` by default. Change it with `--output-dir`.
 
-```bash
-# Use custom output directory
-research-clerk --output-dir ./my-suggestions --batch-size 10
+## How it works
 
-# Get help
-research-clerk --help
-```
+Talks to your SQLite database via an in-process MCP server. Agent can list papers, read abstracts, create collections, add tags.
 
-Suggestions are saved to `~/.local/share/research-clerk/` by default (XDG compliant).
+Enforces some rules: max 3 levels deep, 2-5 tags per paper, won't create subcategories until there's 3+ papers to justify it. Reuses existing collections when possible.
 
-## Workflow
-
-1. **Dry-run**: Agent analyzes items, saves JSON with categorizations and reasoning
-2. **Review**: Inspect suggestions.json, edit if needed
-3. **Apply**: Execute changes to database
-4. **Repeat**: Run again for next batch (previously categorized items drop from unfiled list)
-
-## Safety
-
-- Auto-backup before writes
-- Refuses to run if Zotero is open
-- Atomic transactions with rollback on error
-- Dry-run mode works while Zotero is running (read-only)
-- Never deletes anything
-
-## Architecture
-
-Direct SQLite access with in-process MCP server. Agent uses tools to:
-- List unfiled items and existing collections
-- Get item metadata (abstracts, titles, tags)
-- Create collections and add items
-
-Rules enforced:
-- Max 3 collection levels
-- 2-5 tags per item
-- Requires 3+ papers before creating subcategories
-- Reuses existing collection structure
-
-## Threat model
-
-- Database corruption: mitigated by backup, lock check, transactions
-- Duplicate collections: fixed - now checks existing before creating
-- Attachments in collections: filtered out (they have parentItemID)
-- Over-categorization: agent enforces depth/breadth rules
+Dry-run is read-only, works with Zotero open. Apply mode backs up your database first and refuses to run if Zotero is running. Uses transactions so errors rollback cleanly. Never deletes anything.
