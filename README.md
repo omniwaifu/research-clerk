@@ -6,10 +6,19 @@ AI-powered categorization for Zotero libraries using Claude Agent SDK.
 
 Analyzes unfiled papers and creates hierarchical collections with tags. Works directly with local Zotero database - no API keys or cloud sync required.
 
-## Setup
+## Installation
+
+Install as a UV tool for global access:
 
 ```bash
-uv sync
+# Install from local directory
+uv tool install .
+
+# Or install directly from git
+uv tool install git+https://github.com/yourusername/research-clerk.git
+
+# Or run without installing
+uvx --from . research-clerk
 ```
 
 Zotero database auto-detected at `~/Zotero/zotero.sqlite`. Set `ZOTERO_DATA_DIR` for custom locations.
@@ -20,25 +29,33 @@ Zotero database auto-detected at `~/Zotero/zotero.sqlite`. Set `ZOTERO_DATA_DIR`
 
 ```bash
 # Dry-run: analyze and save suggestions
-python cli.py --batch-size 10
+research-clerk --batch-size 10
 
-# Apply saved suggestions
-python cli.py --apply-suggestions suggestions.json
+# Apply saved suggestions (path shown in output)
+research-clerk --apply-suggestions ~/.local/share/research-clerk/suggestions.json
 ```
 
 ### Reorganize existing structure
 
 ```bash
 # Dry-run: analyze and suggest reorganization
-python cli.py --reorganize
+research-clerk --reorganize
 
 # Apply saved reorganization
-python cli.py --apply-reorganization reorganization.json
+research-clerk --apply-reorganization ~/.local/share/research-clerk/reorganization.json
 ```
 
-### Batch processing
+### Options
 
-Use `--batch-size N` to process incrementally and avoid timeouts.
+```bash
+# Use custom output directory
+research-clerk --output-dir ./my-suggestions --batch-size 10
+
+# Get help
+research-clerk --help
+```
+
+Suggestions are saved to `~/.local/share/research-clerk/` by default (XDG compliant).
 
 ## Workflow
 

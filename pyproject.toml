@@ -1,10 +1,13 @@
 [project]
 name = "research-clerk"
 version = "0.1.0"
-description = "Add your description here"
+description = "AI-powered categorization for Zotero libraries using Claude Agent SDK"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "claude-agent-sdk>=0.1.4",
     "anyio>=4.0.0",
 ]
+
+[project.scripts]
+research-clerk = "research_clerk.cli:main"

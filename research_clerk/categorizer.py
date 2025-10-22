@@ -7,7 +7,7 @@ from .tools import ALL_TOOLS
 from .prompts import CATEGORIZER_PROMPT
 
 
-async def categorize_unfiled(dry_run: bool = True, batch_size: int = None):
+async def categorize_unfiled(dry_run: bool = True, batch_size: int = None, output_dir: Path = None):
     """
     Categorize unfiled papers in the Zotero library.
 
@@ -15,7 +15,10 @@ async def categorize_unfiled(dry_run: bool = True, batch_size: int = None):
         dry_run: If True, only analyzes and suggests without making changes.
                  If False, actually creates collections and categorizes items.
         batch_size: If set, only process first N items. Useful for incremental runs.
+        output_dir: Directory to save suggestion files. Defaults to current directory.
     """
+    if output_dir is None:
+        output_dir = Path.cwd()
     # Create in-process MCP server with our tools
     server = create_sdk_mcp_server(
         name="zotero-tools",
@@ -139,12 +142,12 @@ Create collections as needed (parents first), then add items and tags.
                         return
 
                     # Save to file
-                    output_file = Path("suggestions.json")
+                    output_file = output_dir / "suggestions.json"
                     with open(output_file, 'w') as f:
                         json.dump(suggestions, f, indent=2)
 
                     print(f"\n\n✓ Saved {len(suggestions.get('items', []))} suggestions to {output_file}")
-                    print(f"   Run: python cli.py --apply-suggestions {output_file}")
+                    print(f"   Run: research-clerk --apply-suggestions {output_file}")
                 except json.JSONDecodeError as e:
                     print(f"\n\n✗ Failed to parse JSON: {e}")
                     print("   Agent output may not be in correct format")

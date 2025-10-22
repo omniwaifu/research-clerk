@@ -7,7 +7,7 @@ from .tools import REORGANIZE_TOOLS
 from .prompts import CATEGORIZER_PROMPT
 
 
-async def reorganize_collections(dry_run: bool = True, batch_size: int = None):
+async def reorganize_collections(dry_run: bool = True, batch_size: int = None, output_dir: Path = None):
     """
     Analyze existing collection structure and suggest reorganizations.
 
@@ -15,7 +15,10 @@ async def reorganize_collections(dry_run: bool = True, batch_size: int = None):
         dry_run: If True, only analyzes and suggests without making changes.
                  If False, actually moves items and creates new collections.
         batch_size: If set, only process first N items. Useful for incremental runs.
+        output_dir: Directory to save suggestion files. Defaults to current directory.
     """
+    if output_dir is None:
+        output_dir = Path.cwd()
     # Create in-process MCP server with reorganization tools
     server = create_sdk_mcp_server(
         name="zotero-tools",
@@ -149,12 +152,12 @@ Process moves by:
                         return
 
                     # Save to file
-                    output_file = Path("reorganization.json")
+                    output_file = output_dir / "reorganization.json"
                     with open(output_file, 'w') as f:
                         json.dump(suggestions, f, indent=2)
 
                     print(f"\n\n✓ Saved {len(suggestions.get('moves', []))} reorganization suggestions to {output_file}")
-                    print(f"   Run: python cli.py --apply-reorganization {output_file}")
+                    print(f"   Run: research-clerk --apply-reorganization {output_file}")
                 except json.JSONDecodeError as e:
                     print(f"\n\n✗ Failed to parse JSON: {e}")
                     print("   Agent output may not be in correct format")
