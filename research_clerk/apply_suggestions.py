@@ -1,77 +1,9 @@
 """Apply saved categorization suggestions."""
 import json
-import re
 from pathlib import Path
 from .backends.local_sqlite import LocalSQLiteBackend
 from .config import find_zotero_database
-
-
-def validate_suggestions(data: dict) -> list[str]:
-    """
-    Validate suggestions JSON schema.
-
-    Returns list of error messages (empty if valid).
-    """
-    errors = []
-
-    # Check top-level structure
-    if not isinstance(data, dict):
-        errors.append("Root must be a JSON object")
-        return errors
-
-    if "items" not in data:
-        errors.append("Missing required 'items' field")
-        return errors
-
-    if not isinstance(data["items"], list):
-        errors.append("'items' must be a list")
-        return errors
-
-    # Empty list is OK - means no items to categorize
-    if len(data["items"]) == 0:
-        return []
-
-    # Validate each item
-    for i, item in enumerate(data["items"]):
-        prefix = f"Item {i}"
-
-        if not isinstance(item, dict):
-            errors.append(f"{prefix}: must be an object")
-            continue
-
-        # Required fields
-        if "item_key" not in item:
-            errors.append(f"{prefix}: missing 'item_key'")
-        elif not isinstance(item["item_key"], str):
-            errors.append(f"{prefix}: 'item_key' must be a string")
-        elif not re.match(r'^[A-Z0-9]{8}$', item["item_key"]):
-            errors.append(f"{prefix}: 'item_key' must be 8 uppercase alphanumeric characters (got: {item['item_key']})")
-
-        if "collection_path" not in item:
-            errors.append(f"{prefix}: missing 'collection_path'")
-        elif not isinstance(item["collection_path"], str):
-            errors.append(f"{prefix}: 'collection_path' must be a string")
-        elif not item["collection_path"].strip():
-            errors.append(f"{prefix}: 'collection_path' cannot be empty")
-        elif item["collection_path"].count('/') > 2:
-            errors.append(f"{prefix}: 'collection_path' exceeds max 3 levels (got: {item['collection_path']})")
-
-        # Optional fields
-        if "tags" in item:
-            if not isinstance(item["tags"], list):
-                errors.append(f"{prefix}: 'tags' must be a list")
-            elif not all(isinstance(t, str) for t in item["tags"]):
-                errors.append(f"{prefix}: all tags must be strings")
-            elif len(item["tags"]) > 5:
-                errors.append(f"{prefix}: too many tags (max 5, got {len(item['tags'])})")
-
-        if "title" in item and not isinstance(item["title"], str):
-            errors.append(f"{prefix}: 'title' must be a string")
-
-        if "reasoning" in item and not isinstance(item["reasoning"], str):
-            errors.append(f"{prefix}: 'reasoning' must be a string")
-
-    return errors
+from .utils import validate_suggestions, build_collection_hierarchy
 
 
 def apply_suggestions(suggestions_file: Path):
@@ -102,7 +34,7 @@ def apply_suggestions(suggestions_file: Path):
     with backend.connect(read_only=False) as backend:
         # Build collection key map from existing collections
         existing_collections = backend.list_collections()
-        collection_keys = {coll['path']: key for key, coll in existing_collections.items()}
+        new_collection_cache = {}
 
         # Process each item
         for item in suggestions['items']:
@@ -117,23 +49,15 @@ def apply_suggestions(suggestions_file: Path):
             print(f"Reasoning: {item.get('reasoning', 'N/A')}")
             print(f"{'='*60}")
 
-            # Create collection hierarchy if needed
-            parts = collection_path.split('/')
-            parent_key = None
-
-            for i, part in enumerate(parts):
-                path_so_far = '/'.join(parts[:i+1])
-
-                if path_so_far not in collection_keys:
-                    # Create this collection
-                    new_key = backend.create_collection(part, parent_key)
-                    collection_keys[path_so_far] = new_key
-                    parent_key = new_key
-                else:
-                    parent_key = collection_keys[path_so_far]
+            # Create collection hierarchy if needed and get final collection key
+            final_key = build_collection_hierarchy(
+                collection_path,
+                existing_collections,
+                backend,
+                new_collection_cache
+            )
 
             # Add item to final collection
-            final_key = collection_keys[collection_path]
             backend.add_to_collection(item_key, final_key)
 
             # Add tags

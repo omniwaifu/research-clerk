@@ -2,6 +2,7 @@
 import json
 from claude_agent_sdk import tool
 from .config import get_zotero_backend
+from .utils import format_tool_response
 
 
 # NOTE: tools run in read-only mode for reads, write mode for writes
@@ -17,8 +18,8 @@ async def list_unfiled_items(args):
     """List all items not currently in any collection."""
     with get_zotero_backend(read_only=True) as backend:
         unfiled = backend.list_unfiled_items()
-    
-    return {"content": [{"type": "text", "text": json.dumps(unfiled, indent=2)}]}
+
+    return format_tool_response(json.dumps(unfiled, indent=2))
 
 
 @tool(
@@ -40,8 +41,8 @@ async def get_item_details(args):
     """Fetch detailed metadata for a specific item."""
     with get_zotero_backend(read_only=True) as backend:
         metadata = backend.get_item_details(args["item_key"])
-    
-    return {"content": [{"type": "text", "text": json.dumps(metadata, indent=2)}]}
+
+    return format_tool_response(json.dumps(metadata, indent=2))
 
 
 @tool(
@@ -53,8 +54,8 @@ async def list_collections(args):
     """List all collections with their hierarchy."""
     with get_zotero_backend(read_only=True) as backend:
         collections = backend.list_collections()
-    
-    return {"content": [{"type": "text", "text": json.dumps(collections, indent=2)}]}
+
+    return format_tool_response(json.dumps(collections, indent=2))
 
 
 @tool(
@@ -80,11 +81,11 @@ async def create_collection(args):
     """Create a new collection in Zotero."""
     with get_zotero_backend(read_only=False) as backend:
         new_key = backend.create_collection(args["name"], args.get("parent_key"))
-    
+
     msg = f"Created collection '{args['name']}' with key {new_key}"
     if args.get("parent_key"):
         msg += f" under parent {args['parent_key']}"
-    return {"content": [{"type": "text", "text": msg}]}
+    return format_tool_response(msg)
 
 
 @tool(
@@ -110,8 +111,8 @@ async def add_to_collection(args):
     """Add an item to a collection."""
     with get_zotero_backend(read_only=False) as backend:
         backend.add_to_collection(args["item_key"], args["collection_key"])
-    
-    return {"content": [{"type": "text", "text": f"Added item {args['item_key']} to collection {args['collection_key']}"}]}
+
+    return format_tool_response(f"Added item {args['item_key']} to collection {args['collection_key']}")
 
 
 @tool(
@@ -139,7 +140,7 @@ async def add_tags_to_item(args):
     with get_zotero_backend(read_only=False) as backend:
         backend.add_tags(args["item_key"], args["tags"])
 
-    return {"content": [{"type": "text", "text": f"Added tags {args['tags']} to item {args['item_key']}"}]}
+    return format_tool_response(f"Added tags {args['tags']} to item {args['item_key']}")
 
 
 @tool(
@@ -152,7 +153,7 @@ async def list_filed_items(args):
     with get_zotero_backend(read_only=True) as backend:
         filed = backend.list_filed_items()
 
-    return {"content": [{"type": "text", "text": json.dumps(filed, indent=2)}]}
+    return format_tool_response(json.dumps(filed, indent=2))
 
 
 @tool(
@@ -175,7 +176,7 @@ async def get_item_collections(args):
     with get_zotero_backend(read_only=True) as backend:
         paths = backend.get_item_collections(args["item_key"])
 
-    return {"content": [{"type": "text", "text": json.dumps(paths, indent=2)}]}
+    return format_tool_response(json.dumps(paths, indent=2))
 
 
 @tool(
@@ -202,7 +203,7 @@ async def remove_from_collection(args):
     with get_zotero_backend(read_only=False) as backend:
         backend.remove_from_collection(args["item_key"], args["collection_key"])
 
-    return {"content": [{"type": "text", "text": f"Removed item {args['item_key']} from collection {args['collection_key']}"}]}
+    return format_tool_response(f"Removed item {args['item_key']} from collection {args['collection_key']}")
 
 
 # Export all tools for the MCP server

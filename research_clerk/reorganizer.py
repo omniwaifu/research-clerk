@@ -1,10 +1,10 @@
 """Agent logic for reorganizing Zotero collection structure."""
 import json
-import re
 from pathlib import Path
 from claude_agent_sdk import create_sdk_mcp_server, ClaudeSDKClient, ClaudeAgentOptions, AssistantMessage, TextBlock
 from .tools import REORGANIZE_TOOLS
 from .prompts import CATEGORIZER_PROMPT
+from .utils import extract_json_from_markdown, validate_reorganization
 
 
 async def reorganize_collections(dry_run: bool = True, batch_size: int = None, output_dir: Path = None):
@@ -135,32 +135,26 @@ Process moves by:
         if dry_run:
             full_text = '\n'.join(all_text)
 
-            # Find JSON block
-            json_match = re.search(r'```json\s*(\{.*?\})\s*```', full_text, re.DOTALL)
-            if json_match:
-                try:
-                    suggestions = json.loads(json_match.group(1))
+            # Extract JSON from markdown code block
+            suggestions = extract_json_from_markdown(full_text)
 
-                    # Validate schema before saving
-                    from .apply_reorganization import validate_reorganization
-                    errors = validate_reorganization(suggestions)
-                    if errors:
-                        print("\n\n✗ Agent output failed validation:")
-                        for error in errors:
-                            print(f"   - {error}")
-                        print("\n   Suggestions NOT saved. Agent may need to retry.")
-                        return
+            if suggestions:
+                # Validate schema before saving
+                errors = validate_reorganization(suggestions)
+                if errors:
+                    print("\n\n✗ Agent output failed validation:")
+                    for error in errors:
+                        print(f"   - {error}")
+                    print("\n   Suggestions NOT saved. Agent may need to retry.")
+                    return
 
-                    # Save to file
-                    output_file = output_dir / "reorganization.json"
-                    with open(output_file, 'w') as f:
-                        json.dump(suggestions, f, indent=2)
+                # Save to file
+                output_file = output_dir / "reorganization.json"
+                with open(output_file, 'w') as f:
+                    json.dump(suggestions, f, indent=2)
 
-                    print(f"\n\n✓ Saved {len(suggestions.get('moves', []))} reorganization suggestions to {output_file}")
-                    print(f"   Run: research-clerk --apply-reorganization {output_file}")
-                except json.JSONDecodeError as e:
-                    print(f"\n\n✗ Failed to parse JSON: {e}")
-                    print("   Agent output may not be in correct format")
+                print(f"\n\n✓ Saved {len(suggestions.get('moves', []))} reorganization suggestions to {output_file}")
+                print(f"   Run: research-clerk --apply-reorganization {output_file}")
             else:
-                print("\n\n⚠️  No JSON block found in agent output")
+                print("\n\n⚠️  No JSON block found in agent output or failed to parse")
                 print("   Agent may not have finished or formatted output incorrectly")
