@@ -50,9 +50,10 @@ class LocalSQLiteBackend:
     def connect(self, read_only: bool = False):
         """Connect to database."""
         if read_only:
-            # open in read-only mode
-            uri = f"file:{self.db_path}?mode=ro"
-            self.conn = sqlite3.connect(uri, uri=True)
+            # open in read-only mode with immutable=1 for WAL mode databases
+            # immutable=1 tells SQLite the database won't change, avoiding locks
+            uri = f"file:{self.db_path}?mode=ro&immutable=1"
+            self.conn = sqlite3.connect(uri, uri=True, timeout=5.0)
         else:
             # check zotero not running
             if self.check_zotero_running():
@@ -122,6 +123,69 @@ class LocalSQLiteBackend:
                 "itemType": row[3] or "unknown"
             })
         return items
+
+    def list_unfiled_items_since(self, since_timestamp: str) -> List[Dict[str, Any]]:
+        """
+        Get items not in any collection added after a timestamp.
+        
+        Args:
+            since_timestamp: ISO format timestamp (e.g., "2024-01-01 12:00:00")
+        
+        Returns:
+            List of unfiled items added after the timestamp
+        """
+        query = """
+        SELECT DISTINCT
+            i.itemID,
+            i.key,
+            iv.value AS title,
+            it.typeName AS itemType,
+            i.dateAdded
+        FROM items i
+        LEFT JOIN collectionItems ci ON i.itemID = ci.itemID
+        LEFT JOIN itemAttachments ia ON i.itemID = ia.itemID
+        LEFT JOIN itemNotes inotes ON i.itemID = inotes.itemID
+        LEFT JOIN itemData id ON i.itemID = id.itemID
+        LEFT JOIN itemDataValues iv ON id.valueID = iv.valueID
+        LEFT JOIN fields f ON id.fieldID = f.fieldID
+        LEFT JOIN itemTypes it ON i.itemTypeID = it.itemTypeID
+        WHERE ci.itemID IS NULL
+          AND ia.itemID IS NULL
+          AND inotes.itemID IS NULL
+          AND i.itemID NOT IN (SELECT itemID FROM deletedItems)
+          AND f.fieldName = 'title'
+          AND i.dateAdded > ?
+        ORDER BY i.dateAdded DESC
+        """
+        
+        cursor = self.conn.execute(query, (since_timestamp,))
+        items = []
+        for row in cursor:
+            items.append({
+                "itemID": row[0],
+                "key": row[1],
+                "title": row[2] or "Untitled",
+                "itemType": row[3] or "unknown",
+                "dateAdded": row[4]
+            })
+        return items
+
+    def get_max_unfiled_date(self) -> Optional[str]:
+        """Get the most recent dateAdded for unfiled items."""
+        query = """
+        SELECT MAX(i.dateAdded)
+        FROM items i
+        LEFT JOIN collectionItems ci ON i.itemID = ci.itemID
+        LEFT JOIN itemAttachments ia ON i.itemID = ia.itemID
+        LEFT JOIN itemNotes inotes ON i.itemID = inotes.itemID
+        WHERE ci.itemID IS NULL
+          AND ia.itemID IS NULL
+          AND inotes.itemID IS NULL
+          AND i.itemID NOT IN (SELECT itemID FROM deletedItems)
+        """
+        cursor = self.conn.execute(query)
+        row = cursor.fetchone()
+        return row[0] if row and row[0] else None
     
     def get_item_details(self, item_key: str) -> Dict[str, Any]:
         """Get full metadata for an item."""
