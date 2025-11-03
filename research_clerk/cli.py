@@ -16,6 +16,15 @@ def get_default_output_dir() -> Path:
     return xdg_data_home / "research-clerk"
 
 
+def normalize_model_name(model: str) -> str:
+    """Normalize model name to full form."""
+    if model == "haiku":
+        return "claude-haiku-4-5"
+    elif model == "sonnet":
+        return "claude-sonnet-4-5"
+    return model
+
+
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
@@ -74,6 +83,13 @@ Examples:
         default=get_default_output_dir(),
         help=f"Directory to save suggestion files (default: {get_default_output_dir()})"
     )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="claude-haiku-4-5",
+        choices=["claude-haiku-4-5", "claude-sonnet-4-5", "haiku", "sonnet"],
+        help="Claude model to use (default: claude-haiku-4-5)"
+    )
 
     return parser.parse_args()
 
@@ -116,12 +132,16 @@ async def async_main():
     # Ensure output directory exists
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
+    # Normalize model name
+    model = normalize_model_name(args.model)
+
     # Reorganize mode vs categorize mode
     if args.reorganize:
         # Reorganization mode (always dry-run)
         print("REORGANIZE DRY RUN MODE")
         print("   Will analyze existing collections and suggest reorganizations")
         print(f"   Suggestions will be saved to {args.output_dir / 'reorganization.json'}")
+        print(f"   Using model: {model}")
         if args.batch_size:
             print(f"   Processing first {args.batch_size} items")
         print(f"   Run with: research-clerk --apply-reorganization {args.output_dir / 'reorganization.json'}\n")
@@ -130,7 +150,8 @@ async def async_main():
             await reorganize_collections(
                 dry_run=True,
                 batch_size=args.batch_size,
-                output_dir=args.output_dir
+                output_dir=args.output_dir,
+                model=model
             )
         except KeyboardInterrupt:
             print("\n\nCancelled by user")
@@ -145,6 +166,7 @@ async def async_main():
         print("DRY RUN MODE")
         print("   Will analyze and suggest categorizations")
         print(f"   Suggestions will be saved to {args.output_dir / 'suggestions.json'}")
+        print(f"   Using model: {model}")
         if args.batch_size:
             print(f"   Processing first {args.batch_size} items")
         print(f"   Run with: research-clerk --apply-suggestions {args.output_dir / 'suggestions.json'}\n")
@@ -153,7 +175,8 @@ async def async_main():
             await categorize_unfiled(
                 dry_run=True,
                 batch_size=args.batch_size,
-                output_dir=args.output_dir
+                output_dir=args.output_dir,
+                model=model
             )
         except KeyboardInterrupt:
             print("\n\nCancelled by user")

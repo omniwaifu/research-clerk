@@ -7,7 +7,7 @@ from .prompts import CATEGORIZER_PROMPT
 from .utils import extract_json_from_markdown, validate_reorganization
 
 
-async def reorganize_collections(dry_run: bool = True, batch_size: int = None, output_dir: Path = None):
+async def reorganize_collections(dry_run: bool = True, batch_size: int = None, output_dir: Path = None, model: str = "claude-haiku-4-5"):
     """
     Analyze existing collection structure and suggest reorganizations.
 
@@ -16,6 +16,7 @@ async def reorganize_collections(dry_run: bool = True, batch_size: int = None, o
                  If False, actually moves items and creates new collections.
         batch_size: If set, only process first N items. Useful for incremental runs.
         output_dir: Directory to save suggestion files. Defaults to current directory.
+        model: Claude model to use (e.g., "claude-haiku-4-5" or "claude-sonnet-4-5").
     """
     if output_dir is None:
         output_dir = Path.cwd()
@@ -49,6 +50,7 @@ async def reorganize_collections(dry_run: bool = True, batch_size: int = None, o
 
     # Configure agent options
     options = ClaudeAgentOptions(
+        model=model,
         mcp_servers={"zotero": server},
         allowed_tools=allowed_tools,
         system_prompt=CATEGORIZER_PROMPT,
